@@ -2,16 +2,101 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"regexp"
 	"strings"
+	"text/template"
 )
 
 var titleRegex = regexp.MustCompile(`^(#+)\s+(.\*)`)
 var badgeRegex = regexp.MustCompile(`!\\[.\*\\]\\(https\://img\\.shields\\.io.\*\\)`)
+
+func ensureTemplateVars(data *ReadmeData) {
+	if data.Features == nil {
+		data.Features = []string{"✅ Feature 1", "✅ Feature 2", "✅ Feature 3"}
+	}
+	if data.Platforms == nil {
+		data.Platforms = []string{"- **Windows** (if applicable)", "- **macOS**", "- **Linux**"}
+	}
+	if data.QuickInstall == nil {
+		data.QuickInstall = []string{"```sh\ncurl -sSL https://example.com/install.sh | sh\n```"}
+	}
+	if data.Homebrew == nil {
+		data.Homebrew = []string{"```sh\nbrew tap {{.Repo}}\nbrew install {{.ProjectName}}\n```"}
+	}
+	if data.BuildFromSource == nil {
+		data.BuildFromSource = []string{"```sh\ngit clone {{.Repo}}\ncd ./{{.ProjectName}}\ngo build\n```"}
+	}
+	if data.Providers == nil {
+		data.Providers = []string{"- AWS", "- Google Cloud", "- Azure", "- Others..."}
+	}
+	if data.Usage == nil {
+		data.Usage = []string{"```sh\nproject command1 [flags]\nproject command2 [flags]\nproject command3 [flags]\n```"}
+	}
+	if data.Commands == nil {
+		data.Commands = []string{"```plaintext\nproject\n├── command1  # Description\n├── command2  # Description\n└── command3  # Description\n```"}
+	}
+	if data.EnvVars == nil {
+		data.EnvVars = []string{"```sh\nexport API_KEY=\"your-key-here\"\n```"}
+	}
+	if data.DevGuide == nil {
+		data.DevGuide = []string{"```sh\necho \"dev\" > cmd/version\n```"}
+	}
+	if data.Contribution == nil {
+		data.Contribution = []string{"We welcome contributions! See the guidelines [here](CONTRIBUTING.md)."}
+	}
+	if data.License == nil {
+		data.License = []string{"This project is licensed under the [MIT License](LICENSE)."}
+	}
+	if data.Acknowledgments == nil {
+		data.Acknowledgments = []string{"Thanks to all contributors and maintainers of the project."}
+	}
+}
+
+func fillTemplate(data *ReadmeData) (string, error) {
+	ensureTemplateVars(data)
+
+	tmpl := template.New("readme")
+	if tmpl == nil {
+		fmt.Println("❌ Error creating template on first method")
+		return "", fmt.Errorf("error creating template")
+	}
+
+	tmplParsed, tmplParsedErr := tmpl.Parse(defaultTemplate)
+	if tmplParsedErr != nil {
+		fmt.Println("❌ Error parsing template on first method:", tmplParsedErr)
+		return "", tmplParsedErr
+	}
+
+	var tpl bytes.Buffer
+	executeErr := tmplParsed.Execute(&tpl, data)
+	if executeErr != nil {
+		fmt.Println("❌ Error executing template on first method:", executeErr)
+		return "", executeErr
+	}
+
+	// save to file
+	outputFileObj, err := os.Create("IMPROVED_README.md")
+	if err != nil {
+		fmt.Println("❌ Error creating output file:", err)
+		return "", err
+	}
+	defer func(outputFileObj *os.File) {
+		_ = outputFileObj.Close()
+	}(outputFileObj)
+
+	_, err = outputFileObj.WriteString(tpl.String())
+	if err != nil {
+		fmt.Println("❌ Error writing to output file:", err)
+		return "", err
+	}
+
+	return tpl.String(), nil
+}
 
 func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
 	readmeData, err := extractReadmeData(readmeFile)
@@ -76,98 +161,6 @@ func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
 	}
 
 	fmt.Println("✅ `IMPROVED_README.md` generated successfully!")
-
-	//tmplObj, tmplObjErr := template.New("readme_template").Parse(tmplStr)
-	//if tmplObjErr != nil {
-	//	fmt.Println("############################################")
-	//	preLineNumberIndex := strings.Index(tmplObjErr.Error(), "readme_template:")
-	//	lineNumberStr := strings.Split(tmplObjErr.Error()[preLineNumberIndex:], ":")[1]
-	//	lineNumber, lineNumberErr := strconv.Atoi(strings.TrimSpace(lineNumberStr))
-	//	if lineNumberErr != nil {
-	//		fmt.Println("❌ Error parsing template error line number:", lineNumberErr)
-	//		fmt.Println("############################################")
-	//		return
-	//	}
-	//	if lineNumber-1 < 0 {
-	//		fmt.Println("❌ Error parsing template at line 1")
-	//		fmt.Println("############################################")
-	//		return
-	//	}
-	//
-	//	fmt.Println("❌ Error parsing template at line", lineNumber)
-	//
-	//	tmplStrLinesList := strings.Split(tmplStr, "\n")
-	//	tmplStrLinesListInverse := make([]string, 0)
-	//	maxLines := 5
-	//
-	//	for i := lineNumber - 1; i >= 0; i-- {
-	//		if i == lineNumber-1 || i == lineNumber || i <= 0 || maxLines == 0 {
-	//			break
-	//		}
-	//		i--
-	//
-	//		if strings.TrimSpace(tmplStrLinesList[i]) != "" {
-	//			tmplStrLinesListInverse = append(tmplStrLinesListInverse, strings.Join([]string{strconv.Itoa(i+1) + ":", tmplStrLinesList[i]}, " "))
-	//			maxLines--
-	//		} else {
-	//			continue
-	//		}
-	//	}
-	//
-	//	if len(tmplStrLinesListInverse) > 0 {
-	//		fmt.Println("❌ Template part with error:")
-	//		for i := len(tmplStrLinesListInverse) - 1; i >= 0; i-- {
-	//			fmt.Println(tmplStrLinesListInverse[i])
-	//		}
-	//	} else {
-	//		fmt.Println("❌ Template part with error:")
-	//
-	//		fmt.Println(tmplStrLinesList[lineNumber-6])
-	//		fmt.Println(tmplStrLinesList[lineNumber-5])
-	//		fmt.Println(tmplStrLinesList[lineNumber-4])
-	//		fmt.Println(tmplStrLinesList[lineNumber-3])
-	//		fmt.Println(tmplStrLinesList[lineNumber-2])
-	//		fmt.Println(tmplStrLinesList[lineNumber-1])
-	//
-	//		outputFileObj, outputFileObjErr := os.Create("IMPROVED_README_ERROR.md")
-	//		if outputFileObjErr != nil {
-	//			fmt.Println("❌ Error creating output file:", outputFileObjErr)
-	//			return
-	//		}
-	//		defer func(outputFileObj *os.File) {
-	//			_ = outputFileObj.Close()
-	//		}(outputFileObj)
-	//
-	//		_, _ = outputFileObj.WriteString(tmplStr)
-	//
-	//		fmt.Println("❌ Error template content written to `IMPROVED_README_ERROR.md`")
-	//	}
-	//
-	//	fmt.Println("❌ Error:", tmplObjErr)
-	//	fmt.Println("############################################")
-	//	return
-	//}
-	//if tmplObj != nil {
-	//	templateObj = tmplObj
-	//} else {
-	//	fmt.Println("❌ Error parsing template: tmplObj is nil without error")
-	//	return
-	//}
-	//
-	//outputFileObj, outputFileObjErr := os.Create(outputFile)
-	//if outputFileObjErr != nil {
-	//	fmt.Println("❌ Error creating output file:", outputFileObjErr)
-	//	return
-	//}
-	//defer func(outputFileObj *os.File) {
-	//	_ = outputFileObj.Close()
-	//}(outputFileObj)
-	//
-	//templateExecuteErr := templateObj.Execute(outputFileObj, readmeData)
-	//if templateExecuteErr != nil {
-	//	fmt.Println("❌ Error executing template:", templateExecuteErr)
-	//	return
-	//}
 }
 
 func extractReadmeData(readmeFile string) (*ReadmeData, error) {

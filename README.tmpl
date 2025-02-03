@@ -1,28 +1,3 @@
-package main
-
-type ReadmeData struct {
-	Org             string
-	Repo            string
-	ProjectName     string
-	Badges          []string
-	Features        []string
-	Platforms       []string
-	QuickInstall    []string
-	Homebrew        []string
-	BuildFromSource []string
-	Providers       []string
-	Usage           []string
-	Commands        []string
-	EnvVars         []string
-	DevGuide        []string
-	Contribution    []string
-	License         []string
-	Acknowledgments []string
-}
-
-const codeBlock = string("```")
-
-var defaultTemplate = `
 
 {{if and (ne .Org "") (ne .Repo "") (ne .ProjectName "")}}
 # {{.ProjectName}}
@@ -106,9 +81,9 @@ A brief description of the project, explaining its purpose and main features.
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `sh
+```sh
 curl -sSL https://example.com/install.sh | sh
-` + codeBlock + `
+```
 {{end}}
 
 ### 2. Homebrew
@@ -118,10 +93,10 @@ curl -sSL https://example.com/install.sh | sh
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `sh
+```sh
 brew tap {{.Repo}}
 brew install {{.ProjectName}}
-` + codeBlock + `
+```
 {{end}}
 
 ### 3. Build from Source
@@ -131,11 +106,11 @@ brew install {{.ProjectName}}
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `sh
+```sh
 git clone {{.Repo}}
 cd ./{{.ProjectName}}
 go build
-` + codeBlock + `
+```
 {{end}}
 
 ---
@@ -162,11 +137,11 @@ go build
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `sh
+```sh
 project command1 [flags]
 project command2 [flags]
 project command3 [flags]
-` + codeBlock + `
+```
 {{end}}
 
 ### Available Commands
@@ -176,12 +151,12 @@ project command3 [flags]
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `plaintext
+```plaintext
 project
 ├── command1  # Description
 ├── command2  # Description
 └── command3  # Description
-` + codeBlock + `
+```
 {{end}}
 
 ---
@@ -197,9 +172,9 @@ Set environment variables:
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `sh
+```sh
 export API_KEY="your-key-here"
-` + codeBlock + `
+```
 {{end}}
 
 ---
@@ -213,9 +188,9 @@ To start developing on the project, follow these steps:
 {{.}}
 	{{end}}
 {{else}}
-` + codeBlock + `sh
+```sh
 echo "dev" > cmd/version
-` + codeBlock + `
+```
 {{end}}
 
 ---
@@ -255,4 +230,3 @@ Thanks to all contributors and maintainers of the project.
 {{end}}
 
 ---
-`
