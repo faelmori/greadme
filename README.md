@@ -1,4 +1,7 @@
+## **This is just the beginning of a project! Wait a little while for things to work out, or COLLABORATE and help make it real!**
+
 # GReadme
+
 
 ![Version](https://img.shields.io/github/v/release/faelmori/greadme)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/faelmori/greadme/build.yml?branch=main)
