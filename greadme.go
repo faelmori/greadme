@@ -15,29 +15,31 @@ import (
 
 // ReadmeData struct to hold README data
 type ReadmeData struct {
-	Order    []string
-	Sections map[string]string
-	Badges   []string
+	Order    []string          // Order of sections in the README
+	Sections map[string]string // Map of section titles to their content
+	Badges   []string          // List of badges to include in the README
 
-	Org         string
-	Repo        string
-	ProjectName string
+	Org         string // Organization name
+	Repo        string // Repository name
+	ProjectName string // Project name
 
-	Features        []string
-	Platforms       []string
-	QuickInstall    []string
-	Homebrew        []string
-	BuildFromSource []string
-	Providers       []string
-	Usage           []string
-	Commands        []string
-	EnvVars         []string
-	DevGuide        []string
-	Contribution    []string
-	License         []string
-	Acknowledgments []string
+	Features        []string // List of features
+	Platforms       []string // List of supported platforms
+	QuickInstall    []string // Quick installation instructions
+	Homebrew        []string // Homebrew installation instructions
+	BuildFromSource []string // Instructions to build from source
+	Providers       []string // List of providers
+	Usage           []string // Usage instructions
+	Commands        []string // List of commands
+	EnvVars         []string // List of environment variables
+	DevGuide        []string // Developer guide
+	Contribution    []string // Contribution guidelines
+	License         []string // License information
+	Acknowledgments []string // Acknowledgments
 }
 
+// getProjectDetails retrieves the project name, organization, and repository from the git configuration.
+// It changes the current directory to the git folder, runs a git command to get the details, and then changes back to the original directory.
 func getProjectDetails(gitFolder string) (string, string, string, error) {
 	var projectName, org, repo string
 	var runCommandErr error
@@ -65,6 +67,8 @@ func getProjectDetails(gitFolder string) (string, string, string, error) {
 	return projectName, org, repo, nil
 }
 
+// runCommand executes a shell command and returns the output split into project name, organization, and repository.
+// It captures both stdout and stderr, and returns an error if the command fails or the output cannot be parsed.
 func runCommand(command string) (string, string, string, error) {
 	cmd := exec.Command("sh", "-c", command)
 	var out, stderr bytes.Buffer
@@ -87,7 +91,8 @@ func runCommand(command string) (string, string, string, error) {
 	return projectName, org, repo, nil
 }
 
-// logReadDataSummary 📌 **COMPLEMENTO: Log de sumário**
+// logReadDataSummary logs the summary of the parsed Markdown tree to a file named "log_md_tree.txt".
+// It creates the file, writes the tree structure to it, and closes the file.
 func logReadDataSummary(node *gmdtree.MarkdownNode, indent string) error {
 	logMdTree := gmdtree.GetMarkdownTree(node, indent)
 
@@ -108,15 +113,95 @@ func logReadDataSummary(node *gmdtree.MarkdownNode, indent string) error {
 	return nil
 }
 
-// extractReadmeData 📌 **PASSO 2: Integrar extração ao preenchimento do README**
+// scanChildren scans the children of a Markdown node and populates the ReadmeData struct with the content.
+// It categorizes the content based on the section titles and updates the corresponding fields in the ReadmeData struct.
+func scanChildren(node *gmdtree.MarkdownNode, data *ReadmeData) {
+	for _, child := range node.Children {
+		content := strings.Join(child.Content, "\n")
+		if content != "" {
+			content = "<!-- TODO: Review and update this section -->\n" + content
+		}
+		data.Sections[child.Title] = content
+		targetTitle := strings.ToLower(child.Title)
+
+		if strings.Contains(targetTitle, "feature") {
+			data.Features = child.Content
+		}
+		if strings.Contains(targetTitle, "platform") {
+			data.Platforms = child.Content
+		}
+		if strings.Contains(targetTitle, "homebrew") || strings.Contains(targetTitle, "source") || strings.Contains(targetTitle, "quick") {
+			parentNode := gmdtree.FindParent(child, child.Level+1)
+			if strings.Contains(parentNode.Title, "install") {
+				if strings.Contains(targetTitle, "homebrew") {
+					data.Homebrew = child.Content
+				}
+				if strings.Contains(targetTitle, "source") {
+					data.BuildFromSource = child.Content
+				}
+				if strings.Contains(targetTitle, "quick") {
+					data.QuickInstall = child.Content
+				}
+			}
+		}
+		if strings.Contains(targetTitle, "provider") {
+			data.Providers = child.Content
+		}
+		if strings.Contains(targetTitle, "usage") {
+			data.Usage = child.Content
+		}
+		if strings.Contains(targetTitle, "command") || strings.Contains(targetTitle, "available") {
+			data.Commands = child.Content
+		}
+		if strings.Contains(targetTitle, "env") {
+			data.EnvVars = child.Content
+		}
+		if strings.Contains(targetTitle, "dev") {
+			data.DevGuide = child.Content
+		}
+		if strings.Contains(targetTitle, "contrib") {
+			data.Contribution = child.Content
+		}
+		if strings.Contains(targetTitle, "license") {
+			data.License = child.Content
+		}
+		if strings.Contains(targetTitle, "acknowledgment") {
+			data.Acknowledgments = child.Content
+		}
+	}
+}
+
+// extractReadmeData parses the README file and extracts the data into a ReadmeData struct.
+// It also retrieves project details from the git configuration and logs the parsed Markdown tree.
 func extractReadmeData(readmeFile string) (*ReadmeData, error) {
 	root, err := gmdtree.ParseMarkdown(readmeFile)
 	if err != nil {
 		return nil, err
 	}
 
-	data := &ReadmeData{}
-	children := root.Children
+	data := ReadmeData{
+		Org:         "",
+		Repo:        "",
+		ProjectName: "",
+
+		Order:    make([]string, 0),
+		Sections: make(map[string]string),
+		Badges:   make([]string, 0),
+
+		Features:        make([]string, 0),
+		Platforms:       make([]string, 0),
+		QuickInstall:    make([]string, 0),
+		Homebrew:        make([]string, 0),
+		BuildFromSource: make([]string, 0),
+		Providers:       make([]string, 0),
+		Usage:           make([]string, 0),
+		Commands:        make([]string, 0),
+		EnvVars:         make([]string, 0),
+		DevGuide:        make([]string, 0),
+		Contribution:    make([]string, 0),
+		License:         make([]string, 0),
+		Acknowledgments: make([]string, 0),
+	}
 
 	gitFolder := filepath.Dir(readmeFile)
 	projectName, org, repo, projectDetailsErr := getProjectDetails(gitFolder)
@@ -128,59 +213,17 @@ func extractReadmeData(readmeFile string) (*ReadmeData, error) {
 		data.Repo = repo
 	}
 
-	for _, section := range children {
-		content := strings.Join(section.Content, "\n")
-		if content == "" {
-			content = "<!-- TODO: Add content for " + section.Title + " -->"
-		}
-
-		if section.Level > 1 {
-			if section.Type == "title" {
-				matchTarget := strings.ToLower(section.Title)
-				if strings.Contains(matchTarget, "badge") {
-					data.Badges = append(data.Badges, content)
-				} else if strings.Contains(matchTarget, "feature") {
-					data.Features = append(data.Features, content)
-				} else if strings.Contains(matchTarget, "platform") {
-					data.Platforms = append(data.Platforms, content)
-				} else if strings.Contains(matchTarget, "install") {
-					data.QuickInstall = append(data.QuickInstall, content)
-				} else if strings.Contains(matchTarget, "homebrew") {
-					data.Homebrew = append(data.Homebrew, content)
-				} else if strings.Contains(matchTarget, "build") {
-					data.BuildFromSource = append(data.BuildFromSource, content)
-				} else if strings.Contains(matchTarget, "provider") {
-					data.Providers = append(data.Providers, content)
-				} else if strings.Contains(matchTarget, "usage") {
-					data.Usage = append(data.Usage, content)
-				} else if strings.Contains(matchTarget, "command") {
-					data.Commands = append(data.Commands, content)
-				} else if strings.Contains(matchTarget, "env") {
-					data.EnvVars = append(data.EnvVars, content)
-				} else if strings.Contains(matchTarget, "dev") {
-					data.DevGuide = append(data.DevGuide, content)
-				} else if strings.Contains(matchTarget, "contrib") {
-					data.Contribution = append(data.Contribution, content)
-				} else if strings.Contains(matchTarget, "license") {
-					data.License = append(data.License, content)
-				} else if strings.Contains(matchTarget, "acknowledgment") {
-					data.Acknowledgments = append(data.Acknowledgments, content)
-				}
-			}
-		} else {
-			if section.Type == "title" && strings.ToLower(section.Title) != "root" {
-				data.ProjectName = section.Title
-			}
-		}
-
+	for _, node := range root.Children {
+		scanChildren(node, &data)
 	}
 
 	_ = logReadDataSummary(root, "")
 
-	return data, nil
+	return &data, nil
 }
 
-// generateImprovedReadme 📌 **PASSO 3: Gerar o IMPROVED_README.md corretamente**
+// generateImprovedReadme generates an improved README file using a template and the extracted README data.
+// It reads the template file, parses it, renders the template with the data, and writes the output to the specified file.
 func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
 	readmeData, err := extractReadmeData(readmeFile)
 	if err != nil {
@@ -216,7 +259,8 @@ func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
 	fmt.Println("✅ `IMPROVED_README.md` generated successfully!")
 }
 
-// main 📌 **PASSO 4: CLI com Cobra**
+// main is the entry point of the application. It sets up the Cobra CLI and executes the root command.
+// The root command generates an improved README file based on the provided template and README file.
 func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "readme-checker",
