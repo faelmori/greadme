@@ -1,29 +1,29 @@
-package greadme
+package main
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
-// Regex for capturing titles and badges
 var titleRegex = regexp.MustCompile(`^(#+)\s+(.*)`)
 var badgeRegex = regexp.MustCompile(`!\[.*\]\(https://img\.shields\.io.*\)`)
 
-// Function to read and process a file
 func parseFile(filename string) (map[string][]string, []string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	sections := make(map[string][]string)
-	badges := []string{}
+	var badges []string
+	badges = make([]string, 0)
 	var currentSection string
 
 	scanner := bufio.NewScanner(file)
@@ -47,9 +47,35 @@ func parseFile(filename string) (map[string][]string, []string, error) {
 	return sections, badges, scanner.Err()
 }
 
-// Function to compare README files and generate an improved version
-func compareAndGenerateImprovedReadme(templateFile, readmeFile, outputFile string) {
-	templateSections, templateBadges, err := parseFile(templateFile)
+func parseContent(content string) (map[string][]string, []string, error) {
+	sections := make(map[string][]string)
+	var badges []string
+	badges = make([]string, 0)
+	var currentSection string
+
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Capture badges
+		if badgeRegex.MatchString(line) {
+			badges = append(badges, line)
+		}
+
+		// Capture section titles
+		if match := titleRegex.FindStringSubmatch(line); match != nil {
+			currentSection = match[2] // Section name
+			sections[currentSection] = []string{}
+		} else if currentSection != "" {
+			sections[currentSection] = append(sections[currentSection], line)
+		}
+	}
+
+	return sections, badges, scanner.Err()
+}
+
+func compareAndGenerateImprovedReadme(readmeFile, outputFile string) {
+	templateSections, templateBadges, err := parseContent(refReadme)
 	if err != nil {
 		fmt.Println("❌ Error reading template:", err)
 		return
@@ -65,7 +91,7 @@ func compareAndGenerateImprovedReadme(templateFile, readmeFile, outputFile strin
 
 	var improvedReadme strings.Builder
 
-	// Add badges to improved README
+	// Add badges to improved README in the correct order
 	fmt.Println("\n🚀 Checking Badges:")
 	for _, badge := range templateBadges {
 		if contains(readmeBadges, badge) {
@@ -77,7 +103,7 @@ func compareAndGenerateImprovedReadme(templateFile, readmeFile, outputFile strin
 	}
 	improvedReadme.WriteString("\n")
 
-	// Check sections
+	// Check sections and maintain order
 	fmt.Println("\n📌 Checking Sections:")
 	for section, templateContent := range templateSections {
 		improvedReadme.WriteString("## " + section + "\n")
@@ -105,7 +131,6 @@ func compareAndGenerateImprovedReadme(templateFile, readmeFile, outputFile strin
 	fmt.Println("\n✅ `IMPROVED_README.md` generated successfully!")
 }
 
-// Helper function to check if an item exists in a slice
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
@@ -120,15 +145,13 @@ func main() {
 		Use:   "readme-checker",
 		Short: "Checks and improves README structure",
 		Run: func(cmd *cobra.Command, args []string) {
-			templateFile, _ := cmd.Flags().GetString("template")
 			readmeFile, _ := cmd.Flags().GetString("readme")
 			outputFile, _ := cmd.Flags().GetString("output")
 
-			compareAndGenerateImprovedReadme(templateFile, readmeFile, outputFile)
+			compareAndGenerateImprovedReadme(readmeFile, outputFile)
 		},
 	}
 
-	rootCmd.Flags().StringP("template", "t", "README_template.md", "Template README file")
 	rootCmd.Flags().StringP("readme", "r", "README_to_check.md", "README file to check")
 	rootCmd.Flags().StringP("output", "o", "IMPROVED_README.md", "Output improved README file")
 
