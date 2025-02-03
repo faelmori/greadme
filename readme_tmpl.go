@@ -1,26 +1,5 @@
 package main
 
-type ReadmeData struct {
-	Org             string
-	Repo            string
-	ProjectName     string
-	Sections        map[string]string
-	Badges          []string
-	Features        []string
-	Platforms       []string
-	QuickInstall    []string
-	Homebrew        []string
-	BuildFromSource []string
-	Providers       []string
-	Usage           []string
-	Commands        []string
-	EnvVars         []string
-	DevGuide        []string
-	Contribution    []string
-	License         []string
-	Acknowledgments []string
-}
-
 const codeBlock = string("```")
 
 var defaultTemplate = `

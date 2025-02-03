@@ -11,6 +11,7 @@ import (
 type MarkdownNode struct {
 	Level    int
 	Title    string
+	Type     string
 	Content  []string
 	Children []*MarkdownNode
 }
@@ -33,7 +34,7 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 	defer file.Close()
 
 	root := &MarkdownNode{Level: 0, Title: "Root"}
-	var currentNode *MarkdownNode = root
+	var currentNode = root
 	codeBlockActive := false
 
 	scanner := bufio.NewScanner(file)
@@ -54,12 +55,31 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 
 		// Detecta títulos
 		if match := titleRegex.FindStringSubmatch(line); match != nil {
-			level := len(match[1]) // Número de `#` define o nível
+			level := len(match[1])
 			title := match[2]
 
-			newNode := &MarkdownNode{Level: level, Title: title}
+			isTitle := titleRegex.MatchString(line)
+			isList := listRegex.MatchString(line)
+			isOrderedList := orderedListRegex.MatchString(line)
+			isCodeBlock := codeBlockRegex.MatchString(line)
+			isInlineCode := inlineCodeRegex.MatchString(line)
 
-			// Encontra o nó pai adequado
+			var tp string
+			if isTitle {
+				tp = "title"
+			} else if isList {
+				tp = "list"
+			} else if isOrderedList {
+				tp = "orderedList"
+			} else if isCodeBlock {
+				tp = "codeBlock"
+			} else if isInlineCode {
+				tp = "inlineCode"
+			} else {
+				tp = "content"
+			}
+
+			newNode := &MarkdownNode{Level: level, Title: title, Type: tp}
 			parent := FindParent(root, level)
 			parent.Children = append(parent.Children, newNode)
 			currentNode = newNode
@@ -67,14 +87,8 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 		}
 
 		// Detecta listas
-		if match := listRegex.FindStringSubmatch(line); match != nil || orderedListRegex.MatchString(line) {
+		if listRegex.MatchString(line) || orderedListRegex.MatchString(line) {
 			currentNode.Content = append(currentNode.Content, line)
-			continue
-		}
-
-		// Detecta inline code
-		if match := inlineCodeRegex.FindStringSubmatch(line); match != nil {
-			currentNode.Content = append(currentNode.Content, "Code: "+match[1])
 			continue
 		}
 
@@ -109,4 +123,16 @@ func PrintMarkdownTree(node *MarkdownNode, indent string) {
 	for _, child := range node.Children {
 		PrintMarkdownTree(child, indent+"  ")
 	}
+}
+
+// Função para obter a árvore Markdown como string
+func GetMarkdownTree(node *MarkdownNode, indent string) string {
+	logOutput := fmt.Sprintf("%s- [%s] (Level %d)\n", indent, node.Title, node.Level)
+	for _, line := range node.Content {
+		logOutput += fmt.Sprintf("%s  %s\n", indent, line)
+	}
+	for _, child := range node.Children {
+		logOutput += GetMarkdownTree(child, indent+"  ")
+	}
+	return logOutput
 }
