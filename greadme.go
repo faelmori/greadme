@@ -15,7 +15,11 @@ import (
 var titleRegex = regexp.MustCompile(`^(#+)\s+(.\*)`)
 var badgeRegex = regexp.MustCompile(`!\\[.\*\\]\\(https\://img\\.shields\\.io.\*\\)`)
 
-func ensureTemplateVars(data *ReadmeData) {
+func ensureTemplateVars(data *ReadmeData) *ReadmeData {
+	if data == nil {
+		data = &ReadmeData{}
+	}
+
 	if data.Features == nil {
 		data.Features = []string{"✅ Feature 1", "✅ Feature 2", "✅ Feature 3"}
 	}
@@ -55,11 +59,11 @@ func ensureTemplateVars(data *ReadmeData) {
 	if data.Acknowledgments == nil {
 		data.Acknowledgments = []string{"Thanks to all contributors and maintainers of the project."}
 	}
+
+	return data
 }
 
 func fillTemplate(data *ReadmeData) (string, error) {
-	ensureTemplateVars(data)
-
 	tmpl := template.New("readme")
 	if tmpl == nil {
 		fmt.Println("❌ Error creating template on first method")
@@ -79,27 +83,13 @@ func fillTemplate(data *ReadmeData) (string, error) {
 		return "", executeErr
 	}
 
-	// save to file
-	outputFileObj, err := os.Create("IMPROVED_README.md")
-	if err != nil {
-		fmt.Println("❌ Error creating output file:", err)
-		return "", err
-	}
-	defer func(outputFileObj *os.File) {
-		_ = outputFileObj.Close()
-	}(outputFileObj)
-
-	_, err = outputFileObj.WriteString(tpl.String())
-	if err != nil {
-		fmt.Println("❌ Error writing to output file:", err)
-		return "", err
-	}
-
 	return tpl.String(), nil
 }
 
-func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
+func generateImprovedReadme(templateFile string, readmeFile string, outputFile string) {
 	readmeData, err := extractReadmeData(readmeFile)
+
+	readmeData = ensureTemplateVars(readmeData)
 
 	if err != nil {
 		fmt.Println("❌ Error extracting README data:", err)
@@ -163,15 +153,52 @@ func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
 	fmt.Println("✅ `IMPROVED_README.md` generated successfully!")
 }
 
-func extractReadmeData(readmeFile string) (*ReadmeData, error) {
-	order, sections, _, err := parseFileOrContent(readmeFile)
+func logReadDataSummary(order []string, sections map[string][]string, badges []string) error {
+	// log the summary of the sections and badges in a README_LOG.txt file
+	logFile, logFileErr := os.Create("README_LOG.txt")
+	if logFileErr != nil {
+		fmt.Println("❌ Error creating log file:", logFileErr)
+		return logFileErr
+	}
+	defer func(logFile *os.File) {
+		_ = logFile.Close()
+	}(logFile)
 
+	_, _ = logFile.WriteString("📝 Order (" + fmt.Sprint(len(order)) + "):\n")
+	for _, section := range order {
+		_, _ = logFile.WriteString(" - " + section + "\n")
+	}
+
+	_, _ = logFile.WriteString("📄 Sections (" + fmt.Sprint(len(sections)) + "):\n")
+	for key, value := range sections {
+		_, _ = logFile.WriteString(" - " + key + " (" + fmt.Sprint(len(value)) + " lines)\n")
+		for _, line := range value {
+			_, _ = logFile.WriteString("   " + line + "\n")
+		}
+	}
+
+	_, _ = logFile.WriteString("🏷️ Badges (" + fmt.Sprint(len(badges)) + "):\n")
+	for _, badge := range badges {
+		_, _ = logFile.WriteString(" - " + badge + "\n")
+	}
+
+	return nil
+}
+
+func extractReadmeData(readmeFile string) (*ReadmeData, error) {
+	order, sections, badges, err := parseFileOrContent(readmeFile)
 	if err != nil {
 		return nil, err
 	}
 
+	_ = logReadDataSummary(order, sections, badges)
+
 	data := &ReadmeData{}
 	for _, section := range order {
+		for _, badge := range badges {
+			data.Badges = append(data.Badges, badge)
+		}
+
 		content := strings.Join(sections[section], "\n")
 		if content == "" {
 			content = "<!-- TODO: Add content for " + section + " -->"
