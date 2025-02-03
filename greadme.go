@@ -193,44 +193,41 @@ func extractReadmeData(readmeFile string) (*ReadmeData, error) {
 
 	_ = logReadDataSummary(order, sections, badges)
 
-	data := &ReadmeData{}
-	for _, section := range order {
-		for _, badge := range badges {
-			data.Badges = append(data.Badges, badge)
-		}
+	data := &ReadmeData{Badges: badges}
 
+	for _, section := range order {
 		content := strings.Join(sections[section], "\n")
 		if content == "" {
 			content = "<!-- TODO: Add content for " + section + " -->"
 		}
 
-		switch strings.ToLower(section) {
+		switch strings.ToLower(strings.TrimSpace(section)) {
 		case "features":
-			data.Features = append(data.Features, content)
+			data.Features = []string{content}
 		case "platforms":
-			data.Platforms = append(data.Platforms, content)
+			data.Platforms = []string{content}
 		case "quick installation":
-			data.QuickInstall = append(data.QuickInstall, content)
+			data.QuickInstall = []string{content}
 		case "homebrew":
-			data.Homebrew = append(data.Homebrew, content)
+			data.Homebrew = []string{content}
 		case "build from source":
-			data.BuildFromSource = append(data.BuildFromSource, content)
+			data.BuildFromSource = []string{content}
 		case "supported providers":
-			data.Providers = append(data.Providers, content)
+			data.Providers = []string{content}
 		case "usage":
-			data.Usage = append(data.Usage, content)
+			data.Usage = []string{content}
 		case "available commands":
-			data.Commands = append(data.Commands, content)
+			data.Commands = []string{content}
 		case "provider credentials":
-			data.EnvVars = append(data.EnvVars, content)
+			data.EnvVars = []string{content}
 		case "development guide":
-			data.DevGuide = append(data.DevGuide, content)
+			data.DevGuide = []string{content}
 		case "contribution":
-			data.Contribution = append(data.Contribution, content)
+			data.Contribution = []string{content}
 		case "license":
-			data.License = append(data.License, content)
+			data.License = []string{content}
 		case "acknowledgments":
-			data.Acknowledgments = append(data.Acknowledgments, content)
+			data.Acknowledgments = []string{content}
 		}
 	}
 
@@ -239,6 +236,8 @@ func extractReadmeData(readmeFile string) (*ReadmeData, error) {
 
 func parseFileOrContent(fileOrContent string) ([]string, map[string][]string, []string, error) {
 	var reader io.Reader
+
+	// Decide se estamos lendo de um arquivo ou de um conteúdo embutido
 	if len(fileOrContent) > 255 {
 		reader = strings.NewReader(fileOrContent)
 	} else {
@@ -246,38 +245,47 @@ func parseFileOrContent(fileOrContent string) ([]string, map[string][]string, []
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		defer func(file *os.File) {
-			_ = file.Close()
-		}(file)
+		defer file.Close()
 		reader = file
 	}
-	order := make([]string, 0)
+
+	order := []string{}
 	sections := make(map[string][]string)
-	badges := make([]string, 0)
-
+	badges := []string{}
 	var currentSection string
+
 	scanner := bufio.NewScanner(reader)
-
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 
+		// Captura badges
 		if badgeRegex.MatchString(line) {
 			badges = append(badges, line)
+			continue
 		}
 
+		// Captura títulos de seção
 		if match := titleRegex.FindStringSubmatch(line); match != nil {
 			currentSection = match[2]
 			if _, exists := sections[currentSection]; !exists {
 				order = append(order, currentSection)
 				sections[currentSection] = []string{}
 			}
-		} else if currentSection != "" {
+			continue
+		}
+
+		// Adiciona conteúdo à seção atual
+		if currentSection != "" {
 			sections[currentSection] = append(sections[currentSection], line)
 		}
 	}
 
-	return order, sections, badges, scanner.Err()
+	// Retorna erro caso haja problema na leitura
+	if err := scanner.Err(); err != nil {
+		return nil, nil, nil, err
+	}
 
+	return order, sections, badges, nil
 }
 
 func main() {

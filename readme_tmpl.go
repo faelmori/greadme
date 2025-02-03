@@ -4,6 +4,7 @@ type ReadmeData struct {
 	Org             string
 	Repo            string
 	ProjectName     string
+	Sections        map[string]string
 	Badges          []string
 	Features        []string
 	Platforms       []string
