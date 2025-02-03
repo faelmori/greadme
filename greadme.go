@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/faelmori/greadme/gmdtree"
 	"github.com/spf13/cobra"
+	"os/exec"
+	"path/filepath"
 
 	"os"
 	"strings"
@@ -12,23 +15,76 @@ import (
 
 // ReadmeData struct to hold README data
 type ReadmeData struct {
-	Org             string
-	Repo            string
-	ProjectName     string
-	Badges          []string
-	Features        string
-	Platforms       string
-	QuickInstall    string
-	Homebrew        string
-	BuildFromSource string
-	Providers       string
-	Usage           string
-	Commands        string
-	EnvVars         string
-	DevGuide        string
-	Contribution    string
-	License         string
-	Acknowledgments string
+	Order    []string
+	Sections map[string]string
+	Badges   []string
+
+	Org         string
+	Repo        string
+	ProjectName string
+
+	Features        []string
+	Platforms       []string
+	QuickInstall    []string
+	Homebrew        []string
+	BuildFromSource []string
+	Providers       []string
+	Usage           []string
+	Commands        []string
+	EnvVars         []string
+	DevGuide        []string
+	Contribution    []string
+	License         []string
+	Acknowledgments []string
+}
+
+func getProjectDetails(gitFolder string) (string, string, string, error) {
+	var projectName, org, repo string
+	var runCommandErr error
+
+	// Save the current directory to return to it later
+	currentDir, _ := os.Getwd()
+
+	// Change directory to the gitFolder to run git commands
+	chDirReadmeErr := os.Chdir(gitFolder)
+	if chDirReadmeErr != nil {
+		return "", "", "", fmt.Errorf("error changing directory to git folder: %v", chDirReadmeErr)
+	}
+	gitCommand := "git remote -v | grep origin | head -n 1 | awk '{print $2}' | sed 's/https:\\/\\///' | sed 's/git@//' | sed 's/\\.git$//' | tr '/' ' ' | tr ':' ' '"
+	projectName, org, repo, runCommandErr = runCommand(gitCommand)
+
+	// Change back to the original directory
+	chDirReturnErr := os.Chdir(currentDir)
+	if chDirReturnErr != nil {
+		return "", "", "", fmt.Errorf("error changing back to original directory: %v", chDirReturnErr)
+	}
+
+	if runCommandErr != nil {
+		return "", "", "", runCommandErr
+	}
+	return projectName, org, repo, nil
+}
+
+func runCommand(command string) (string, string, string, error) {
+	cmd := exec.Command("sh", "-c", command)
+	var out, stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		return "", "", "", fmt.Errorf("error running command: %v", err)
+	}
+	if stderr.String() != "" {
+		return "", "", "", fmt.Errorf("error running command: %v", stderr.String())
+	}
+	tmpRespList := strings.Split(strings.ReplaceAll(out.String(), "\n", ""), " ")
+	if len(tmpRespList) != 3 {
+		return "", "", "", fmt.Errorf("error parsing command output: %v", out.String())
+	}
+	repo := strings.Join(tmpRespList[1:], "/")
+	org := tmpRespList[1]
+	projectName := tmpRespList[2]
+	return projectName, org, repo, nil
 }
 
 // logReadDataSummary 📌 **COMPLEMENTO: Log de sumário**
@@ -60,83 +116,63 @@ func extractReadmeData(readmeFile string) (*ReadmeData, error) {
 	}
 
 	data := &ReadmeData{}
+	children := root.Children
 
-	if root.Level == 0 || root.Level == 1 {
-		for _, section := range root.Children {
-			content := strings.Join(section.Content, "\n")
-			if content == "" {
-				content = "<!-- TODO: Add content for " + section.Title + " -->"
-			}
-
-			if section.Type == "title" {
-				switch strings.ToLower(strings.TrimSpace(section.Title)) {
-				case "features":
-					data.Features = content
-				case "platforms":
-					data.Platforms = content
-				case "quick installation":
-					data.QuickInstall = content
-				case "homebrew":
-					data.Homebrew = content
-				case "build from source":
-					data.BuildFromSource = content
-				case "supported providers":
-					data.Providers = content
-				case "usage":
-					data.Usage = content
-				case "available commands":
-					data.Commands = content
-				case "provider credentials":
-					data.EnvVars = content
-				case "development guide":
-					data.DevGuide = content
-				case "contribution":
-					data.Contribution = content
-				case "license":
-					data.License = content
-				case "acknowledgments":
-					data.Acknowledgments = content
-				}
-			} else if section.Type == "list" {
-				if strings.Contains(strings.ToLower(content), "github.com") {
-					data.Repo = content
-				} else if strings.Contains(strings.ToLower(content), "github.io") {
-					data.Org = content
-				} else {
-					data.ProjectName = content
-				}
-			}
-		}
+	gitFolder := filepath.Dir(readmeFile)
+	projectName, org, repo, projectDetailsErr := getProjectDetails(gitFolder)
+	if projectDetailsErr != nil {
+		fmt.Println("⚠️ Error getting project details:", projectDetailsErr)
 	} else {
-		content := strings.Join(root.Content, "\n")
-		switch strings.ToLower(strings.TrimSpace(root.Title)) {
-		case "features":
-			data.Features = content
-		case "platforms":
-			data.Platforms = content
-		case "quick installation":
-			data.QuickInstall = content
-		case "homebrew":
-			data.Homebrew = content
-		case "build from source":
-			data.BuildFromSource = content
-		case "supported providers":
-			data.Providers = content
-		case "usage":
-			data.Usage = content
-		case "available commands":
-			data.Commands = content
-		case "provider credentials":
-			data.EnvVars = content
-		case "development guide":
-			data.DevGuide = content
-		case "contribution":
-			data.Contribution = content
-		case "license":
-			data.License = content
-		case "acknowledgments":
-			data.Acknowledgments = content
+		data.ProjectName = projectName
+		data.Org = org
+		data.Repo = repo
+	}
+
+	for _, section := range children {
+		content := strings.Join(section.Content, "\n")
+		if content == "" {
+			content = "<!-- TODO: Add content for " + section.Title + " -->"
 		}
+
+		if section.Level > 1 {
+			if section.Type == "title" {
+				matchTarget := strings.ToLower(section.Title)
+				if strings.Contains(matchTarget, "badge") {
+					data.Badges = append(data.Badges, content)
+				} else if strings.Contains(matchTarget, "feature") {
+					data.Features = append(data.Features, content)
+				} else if strings.Contains(matchTarget, "platform") {
+					data.Platforms = append(data.Platforms, content)
+				} else if strings.Contains(matchTarget, "install") {
+					data.QuickInstall = append(data.QuickInstall, content)
+				} else if strings.Contains(matchTarget, "homebrew") {
+					data.Homebrew = append(data.Homebrew, content)
+				} else if strings.Contains(matchTarget, "build") {
+					data.BuildFromSource = append(data.BuildFromSource, content)
+				} else if strings.Contains(matchTarget, "provider") {
+					data.Providers = append(data.Providers, content)
+				} else if strings.Contains(matchTarget, "usage") {
+					data.Usage = append(data.Usage, content)
+				} else if strings.Contains(matchTarget, "command") {
+					data.Commands = append(data.Commands, content)
+				} else if strings.Contains(matchTarget, "env") {
+					data.EnvVars = append(data.EnvVars, content)
+				} else if strings.Contains(matchTarget, "dev") {
+					data.DevGuide = append(data.DevGuide, content)
+				} else if strings.Contains(matchTarget, "contrib") {
+					data.Contribution = append(data.Contribution, content)
+				} else if strings.Contains(matchTarget, "license") {
+					data.License = append(data.License, content)
+				} else if strings.Contains(matchTarget, "acknowledgment") {
+					data.Acknowledgments = append(data.Acknowledgments, content)
+				}
+			}
+		} else {
+			if section.Type == "title" && strings.ToLower(section.Title) != "root" {
+				data.ProjectName = section.Title
+			}
+		}
+
 	}
 
 	_ = logReadDataSummary(root, "")

@@ -4,7 +4,7 @@ const codeBlock = string("```")
 
 var defaultTemplate = `
 
-{{if and (ne .Org "") (ne .Repo "") (ne .ProjectName "")}}
+{{if or (ne .Org "") (ne .Repo "") (ne .ProjectName "")}}
 # {{.ProjectName}}
 {{else}}
 # Project Name
@@ -16,9 +16,9 @@ var defaultTemplate = `
 	{{end}}
 {{else}}
 	{{if and (ne .Org "") (ne .Repo "") (ne .ProjectName "")}}
-![Version](https://img.shields.io/github/v/release/{{.Org}}/{{.Repo}})
-![Build Status](https://img.shields.io/github/actions/workflow/status/{{.Org}}/{{.Repo}}/build.yml?branch=main)
-![License](https://img.shields.io/github/license/{{.Org}}/{{.Repo}})
+![Version](https://img.shields.io/github/v/release/{{.Repo}})
+![Build Status](https://img.shields.io/github/actions/workflow/status/{{.Repo}}/build.yml?branch=main)
+![License](https://img.shields.io/github/license/{{.Repo}})
 	{{else}}
 ![Version](https://img.shields.io/github/v/release/user/repo)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/user/repo/build.yml?branch=main)
