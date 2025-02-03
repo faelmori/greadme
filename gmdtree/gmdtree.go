@@ -7,17 +7,17 @@ import (
 	"regexp"
 )
 
-// Estrutura de um nó da árvore Markdown
+// MarkdownNode represents a node in the Markdown tree.
 type MarkdownNode struct {
-	Level    int
-	Title    string
-	Type     string
-	Content  []string
-	Children []*MarkdownNode
+	Level    int             // Level of the node (e.g., heading level)
+	Title    string          // Title of the node
+	Type     string          // Type of the node (e.g., title, list, codeBlock)
+	Content  []string        // Content of the node
+	Children []*MarkdownNode // Child nodes
 }
 
-// Expressões regulares para capturar elementos do Markdown
 var (
+	// Regular expressions to match different Markdown elements
 	titleRegex       = regexp.MustCompile(`^(#{1,6})\s+(.+)$`)
 	listRegex        = regexp.MustCompile(`^\s*[-*+] (.+)$`)
 	orderedListRegex = regexp.MustCompile(`^\s*\d+\.\s+(.+)$`)
@@ -25,7 +25,8 @@ var (
 	inlineCodeRegex  = regexp.MustCompile("`([^`]+)`")
 )
 
-// Função para processar o arquivo Markdown e construir a hierarquia
+// ParseMarkdown parses a Markdown file and returns the root node of the Markdown tree.
+// It takes the file path as input and returns a pointer to the root MarkdownNode and an error if any.
 func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -41,19 +42,19 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Detecta blocos de código
+		// Detect code blocks
 		if codeBlockRegex.MatchString(line) {
 			codeBlockActive = !codeBlockActive
 			continue
 		}
 
-		// Se estamos dentro de um bloco de código, apenas armazena a linha
+		// If we are inside a code block, just store the line
 		if codeBlockActive {
 			currentNode.Content = append(currentNode.Content, line)
 			continue
 		}
 
-		// Detecta títulos
+		// Detect titles
 		if match := titleRegex.FindStringSubmatch(line); match != nil {
 			level := len(match[1])
 			title := match[2]
@@ -67,15 +68,20 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 			var tp string
 			if isTitle {
 				tp = "title"
-			} else if isList {
+			}
+			if isList {
 				tp = "list"
-			} else if isOrderedList {
+			}
+			if isOrderedList {
 				tp = "orderedList"
-			} else if isCodeBlock {
+			}
+			if isCodeBlock {
 				tp = "codeBlock"
-			} else if isInlineCode {
+			}
+			if isInlineCode {
 				tp = "inlineCode"
-			} else {
+			}
+			if !isTitle && !isList && !isOrderedList && !isCodeBlock && !isInlineCode {
 				tp = "content"
 			}
 
@@ -86,13 +92,13 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 			continue
 		}
 
-		// Detecta listas
+		// Detect lists
 		if listRegex.MatchString(line) || orderedListRegex.MatchString(line) {
 			currentNode.Content = append(currentNode.Content, line)
 			continue
 		}
 
-		// Adiciona conteúdo comum
+		// Add common content
 		if currentNode != nil {
 			currentNode.Content = append(currentNode.Content, line)
 		}
@@ -101,7 +107,8 @@ func ParseMarkdown(filePath string) (*MarkdownNode, error) {
 	return root, scanner.Err()
 }
 
-// Encontra o nó pai correto na hierarquia
+// FindParent finds the parent node for a given level in the Markdown tree.
+// It takes the root node and the level as input and returns the parent MarkdownNode.
 func FindParent(root *MarkdownNode, level int) *MarkdownNode {
 	var lastNode *MarkdownNode = root
 	for len(lastNode.Children) > 0 {
@@ -114,7 +121,8 @@ func FindParent(root *MarkdownNode, level int) *MarkdownNode {
 	return root
 }
 
-// Função para imprimir a árvore Markdown
+// PrintMarkdownTree prints the Markdown tree to the console.
+// It takes the root node and an indent string as input.
 func PrintMarkdownTree(node *MarkdownNode, indent string) {
 	fmt.Printf("%s- [%s] (Level %d)\n", indent, node.Title, node.Level)
 	for _, line := range node.Content {
@@ -125,7 +133,8 @@ func PrintMarkdownTree(node *MarkdownNode, indent string) {
 	}
 }
 
-// Função para obter a árvore Markdown como string
+// GetMarkdownTree returns the Markdown tree as a string.
+// It takes the root node and an indent string as input and returns the tree structure as a string.
 func GetMarkdownTree(node *MarkdownNode, indent string) string {
 	logOutput := fmt.Sprintf("%s- [%s] (Level %d)\n", indent, node.Title, node.Level)
 	for _, line := range node.Content {
