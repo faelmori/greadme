@@ -15,25 +15,6 @@ import (
 var titleRegex = regexp.MustCompile(`^(#+)\s+(.\*)`)
 var badgeRegex = regexp.MustCompile(`!\\[.\*\\]\\(https\://img\\.shields\\.io.\*\\)`)
 
-type ReadmeData struct {
-	Org             string
-	Repo            string
-	ProjectName     string
-	Features        string
-	Platforms       string
-	QuickInstall    string
-	Homebrew        string
-	BuildFromSource string
-	Providers       string
-	Usage           string
-	Commands        string
-	EnvVars         string
-	DevGuide        string
-	Contribution    string
-	License         string
-	Acknowledgments string
-}
-
 func generateImprovedReadme(templateFile, readmeFile, outputFile string) {
 	readmeData, err := extractReadmeData(readmeFile)
 
@@ -185,27 +166,6 @@ func extractReadmeData(readmeFile string) (*ReadmeData, error) {
 	return data, nil
 }
 
-func main() {
-	var rootCmd = &cobra.Command{
-		Use:   "readme-checker",
-		Short: "Checks and improves README structure",
-		Run: func(cmd *cobra.Command, args []string) {
-			templateFile, _ := cmd.Flags().GetString("template")
-			readmeFile, _ := cmd.Flags().GetString("readme")
-			outputFile, _ := cmd.Flags().GetString("output")
-			generateImprovedReadme(templateFile, readmeFile, outputFile)
-		},
-	}
-	rootCmd.Flags().StringP("template", "t", "", "Template README file (leave empty to use built-in template)")
-	rootCmd.Flags().StringP("readme", "r", "README_to_check.md", "README file to check")
-	rootCmd.Flags().StringP("output", "o", "IMPROVED_README.md", "Output improved README file")
-	cmdExecErr := rootCmd.Execute()
-	if cmdExecErr != nil {
-		fmt.Println("❌ Error executing command:", cmdExecErr)
-		return
-	}
-}
-
 func parseFileOrContent(fileOrContent string) ([]string, map[string][]string, []string, error) {
 	var reader io.Reader
 	if len(fileOrContent) > 255 {
@@ -247,4 +207,25 @@ func parseFileOrContent(fileOrContent string) ([]string, map[string][]string, []
 
 	return order, sections, badges, scanner.Err()
 
+}
+
+func main() {
+	var rootCmd = &cobra.Command{
+		Use:   "readme-checker",
+		Short: "Checks and improves README structure",
+		Run: func(cmd *cobra.Command, args []string) {
+			templateFile, _ := cmd.Flags().GetString("template")
+			readmeFile, _ := cmd.Flags().GetString("readme")
+			outputFile, _ := cmd.Flags().GetString("output")
+			generateImprovedReadme(templateFile, readmeFile, outputFile)
+		},
+	}
+	rootCmd.Flags().StringP("template", "t", "", "Template README file (leave empty to use built-in template)")
+	rootCmd.Flags().StringP("readme", "r", "README_to_check.md", "README file to check")
+	rootCmd.Flags().StringP("output", "o", "IMPROVED_README.md", "Output improved README file")
+	cmdExecErr := rootCmd.Execute()
+	if cmdExecErr != nil {
+		fmt.Println("❌ Error executing command:", cmdExecErr)
+		return
+	}
 }

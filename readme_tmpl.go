@@ -1,5 +1,24 @@
 package main
 
+type ReadmeData struct {
+	Org             string
+	Repo            string
+	ProjectName     string
+	Features        string
+	Platforms       string
+	QuickInstall    string
+	Homebrew        string
+	BuildFromSource string
+	Providers       string
+	Usage           string
+	Commands        string
+	EnvVars         string
+	DevGuide        string
+	Contribution    string
+	License         string
+	Acknowledgments string
+}
+
 const defaultTemplate = `
 
 # {{if .ProjectName}}{{.ProjectName}}{{else}}Project Name{{end}}
